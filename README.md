@@ -6,7 +6,7 @@ The Azure Meal Project is a cloud-based ETL pipeline designed for efficient data
 
 <p align="center">
  <b>Figure 1: Architecture Design of Meal Project ETL</b>
-    <img src="https://github.com/user-attachments/assets/7269920c-fb1a-497d-8e8a-79e1d41d270d" alt="Architecture Diagram" width="600">
+    <img src="https://github.com/user-attachments/assets/7269920c-fb1a-497d-8e8a-79e1d41d270d" alt="Architecture Diagram" width="500" style="display: flex;">
 </p>
 
 
