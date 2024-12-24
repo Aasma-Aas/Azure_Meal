@@ -3,86 +3,90 @@ import logging
 import traceback
 import pymssql
 
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Connect to the database
-# def dbConnect():
-#     try:
-#         conn = pymssql.connect(
-#             server=server_name,
-#             user=user_name,
-#             password=pwd,
-#             database=db_name
-#         )
-#         logging.info("Successfully connected to the database.")
-#         return conn
-#     except Exception as e:
-#         logging.error(f"Database connection error: {e}")
-#         return None
-
-def table_file_metadata(file_metadata_records, conn):
-    # conn = dbConnect()
+def insert_metadata(file_metadata_records, conn):
+    # Ensure connection is valid
     if conn is None:
-        logging.error("Failed to connect to the database. Aborting insert.")
-        return  # Exit if connection failed
-    cursor = conn.cursor()
+        logging.error("Database connection is None. Aborting insert.")
+        return
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")  
+    except pymssql.OperationalError as e:
+        logging.error(f"Database connection is not active. Error: {e}")
+        return
     try:
         for _, row in file_metadata_records.iterrows():
             try:
-                logging.info(f"Inserting row into File_Metadata: {row.to_dict()}")
+                 # Check if the record exists using the condition
                 cursor.execute("""
-                    INSERT INTO dbo.File_Metadata (Filename, Variety, Formulation, Number_of_Samples, UploadDate, group_id, file_code)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (row['Filename'], row['Variety'], row['Formulation'], row['Number of Samples'], row['UploadDate'], row['group_id'], row['file_code']))
-                logging.info(f"Inserted row into File_Metadata successfully.")
-                cursor.execute("SELECT SCOPE_IDENTITY()")
+                    SELECT COUNT(1) FROM dbo.File_Metadata
+                    WHERE group_id = %s
+                    AND file_code = %s
+                """, (row['group_id'], row['file_code']))
+                
+                record_exists = cursor.fetchone()[0]
+                
+                if record_exists == 0:  
+                    cursor.execute("""
+                        INSERT INTO dbo.File_Metadata (Filename, Variety, Formulation, Number_of_Samples, UploadDate, group_id, file_code)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (row['Filename'], row['Variety'], row['Formulation'], row['Number_of_Samples'], row['UploadDate'], row['group_id'], row['file_code']))
+                    logging.info(f"Inserted File_Metadata record: {row.to_dict()}")
+                else:
+                    logging.info(f"Skipped File_Metadata record (duplicate): {row.to_dict()}")
+                
             except Exception as e:
                 logging.error(f"Error during database insertion: {traceback.format_exc()}")
     except pymssql.Error as e:
         logging.error(f"Error during insertion: {e}")
+    except pymssql.Error as db_error:
+        logging.error(f"Database error: {db_error}")
     finally:
         conn.commit()
         cursor.close()
-        conn.close()
 
-def table_weight(weight_records, conn):
-    # conn = dbConnect()
+def insert_weights(weight_records, conn):
+    # Check if the connection is None
     if conn is None:
-        logging.error("Failed to connect to the database. Aborting insert.")
-        return  # Exit if connection failed
-    cursor = conn.cursor()
+        logging.error("Database connection is None. Aborting insert.")
+        return
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")  
+    except pymssql.OperationalError as e:
+        logging.error(f"Database connection is not active. Error: {e}")
+        return
+    
     try:
         for _, row in weight_records.iterrows():
             try:
-                group_id = int(row['group_id'])
-                file_code = row['file_code']
-                WLD = int(row['WLD'])
-                Weight = int(row['Weight'])
-                DateDifference = row['DateDifference']
-
+                # Check if the record exists using the condition
                 cursor.execute("""
-                    SELECT COUNT(1)
-                    FROM dbo.WeightLoss
-                    WHERE group_id = %s AND file_code = %s AND WLD = %s AND Weight = %s AND DateDifference = %s
-                """, (group_id, file_code, WLD, Weight, DateDifference))
-                exists = cursor.fetchone()[0]
-
-                if exists == 0:
+                    SELECT COUNT(1) FROM dbo.WeightLoss
+                    WHERE group_id = %s
+                    AND file_code = %s
+                    AND WLD = %s
+                    AND Weight = %s
+                    AND DateDifference = %s
+                """, (row['group_id'], row['file_code'], row['WLD'], row['Weight'], row['DateDifference']))
+                
+                record_exists = cursor.fetchone()[0]
+                
+                if record_exists == 0:  
                     cursor.execute("""
                         INSERT INTO dbo.WeightLoss (group_id, file_code, WLD, Weight, DateDifference)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (group_id, file_code, WLD, Weight, DateDifference))
-
-                    logging.info(f"Successfully inserted row: {row.to_dict()}")
+                    """, (row['group_id'], row['file_code'], row['WLD'], row['Weight'], row['DateDifference']))
+                    logging.info(f"Inserted weight record: {row.to_dict()}")
                 else:
-                    logging.info(f"Duplicate found for row: {row.to_dict()}, skipping insertion.")
+                    logging.info(f"Skipped weight record (duplicate): {row.to_dict()}")
+
             except Exception as e:
-                logging.error(f"Failed to insert row into Weight: {e}")
-    except pymssql.Error as e:
-        logging.error(f"Error during insertion: {e}")
+                logging.error(f"Error processing weight record {row.to_dict()}: {e}")
+    except pymssql.Error as db_error:
+        logging.error(f"Database error: {db_error}")
     finally:
         conn.commit()
         cursor.close()
-        conn.close()
