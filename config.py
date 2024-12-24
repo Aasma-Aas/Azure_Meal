@@ -17,3 +17,6 @@ CONTAINER_NAME = 'csv-files'
 INPUT_FOLDER = 'InputFiles/'
 OUTPUT_FOLDER = 'Archive/'
 FAULTY_FOLDER = 'Faulty/'
+
+
+
